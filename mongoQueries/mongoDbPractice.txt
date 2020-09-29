@@ -1,0 +1,175 @@
+1. Distinct users in the log file
+
+--> db.cpuLogs.distinct("user_name")
+
+2. Number of distinct users in the log file
+
+--> db.cpuLogs.distinct("user_name").length
+
+3. Users in each technology
+
+--> db.cpuLogs.aggregate([{
+$group:
+{
+    _id:"$technology",
+    user:{$addToSet:"$user_name"}
+   }
+ }
+])
+
+4. Number of users in each technology
+
+--> db.cpuLogs.aggregate([{
+$group:
+{
+    _id:"$technology",
+    user:{$addToSet:"$user_name"}
+    }
+  },
+{
+$unwind:"$user"
+  },
+{$group:
+{
+  _id:"$_id",
+  user_count:{$sum:1}
+  }
+}
+])
+
+5. Number of users in each technology sorted in descending order
+
+--> db.cpuLogs.aggregate([{
+$group:{
+    _id:"$technology",
+    user:{$addToSet:"$user_name"}
+    }
+  },
+{
+$unwind:"$user"
+  },
+{$group:{
+  _id:"$_id",
+  user_count:{$sum:1}
+ }
+},
+{ $sort:{user_count:-1 }}
+])
+
+6. Number of times mouse and keyboard was zero
+
+--> db.cpuLogs.find({"mouse":0,"keyboard":0}).count()
+
+7. Number of times mouse and keyboard was zero for each user
+
+--> db.cpuLogs.aggregate(
+{
+    $match:{mouse:0,keyboard:0}
+},
+{
+$group:{
+    _id:"$user_name",
+    count: { $sum: 1 }
+    }
+})
+
+8. Users present on each day
+
+--> db.cpuLogs.aggregate({
+    $group:{
+    _id: {day: { $dayOfMonth: "$DateTime"},month:{$month:"$DateTime"}},
+    user: {$addToSet:"$user_name"}
+    }
+})
+
+9. Day each user was present
+
+-->  db.cpuLogs.aggregate({
+$group:{
+    _id:"$user_name",
+    date: {$addToSet:{day:{$dayOfMonth:"$DateTime"}}}
+    }
+})
+
+10. Entry time of each user
+
+--> db.logFile.aggregate(
+{$project:{
+date:{             
+    $dateFromString:{dateString:'$DateTime'}           
+        },
+user_name:1
+    }
+},
+{
+    $group:{
+    _id: {day: { $dayOfMonth: "$date"},month:{$month:"$date"}, user:"$user_name"},
+    entry_hour:{$first:{$hour:"$date"}},
+    entry_min:{$first:{$minute:"$date"}}
+    }
+})
+
+11. Total working hours of each user
+
+--> db.logFile.aggregate(
+{$project:{
+date:{             
+    $dateFromString:{dateString:'$DateTime'}           
+        },
+user_name:1
+    }
+},
+{
+    $group:{
+    _id: {day: { $dayOfMonth: "$date"},month:{$month:"$date"}, user:"$user_name"},
+    entry_hour:{$first:{$hour:"$date"}},
+    exit_hour:{$last:{$hour:"$date"}},
+    }
+},
+{$project:{
+  working_hours:{$subtract:["$exit_hour","$entry_hour"]}
+}}
+)
+
+12. If Users were late or not
+
+--> db.logFile.aggregate(
+{$project:{
+date:{             
+    $dateFromString:{dateString:'$DateTime'}           
+        },
+user_name:1
+    }
+},
+{
+    $group:{
+    _id: {day: { $dayOfMonth: "$date"},month:{$month:"$date"}, user:"$user_name"},
+    entry_hour:{$first:{$hour:"$date"}},
+    entry_minute:{$first:{$minute:"$date"}}
+    }
+},
+{$project:{
+  Late:{ $and: [ { $gt: [ "entry_hour", 8 ] }, { $gt: [ "$entry_minute", 30 ] } ] }
+}}
+)
+
+13. Number of days user was present
+
+--> db.cpuLogs.aggregate({
+$group:{
+    _id:"$user_name",
+    date: {$addToSet:{day:{$dayOfMonth:"$DateTime"}}}
+    }
+},
+{
+$unwind:"$date"
+  },
+{$group:{
+  _id:"$_id",
+  user_count:{$sum:1}
+ }})
+
+
+
+
+
